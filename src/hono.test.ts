@@ -832,6 +832,21 @@ describe('Routing', () => {
       expect(await res.text()).toBe('static')
     })
 
+    it('should match wildcard routes with encoded line terminators', async () => {
+      app.use('/*', async (c, next) => {
+        c.header('x-wildcard-middleware', 'hit')
+        await next()
+      })
+      app.get('/*', (c) => c.text('matched'))
+
+      for (const encoded of ['%0A', '%0D', '%E2%80%A8', '%E2%80%A9']) {
+        const res = await app.request(`http://localhost/a${encoded}b`)
+        expect(res.status).toBe(200)
+        expect(await res.text()).toBe('matched')
+        expect(res.headers.get('x-wildcard-middleware')).toBe('hit')
+      }
+    })
+
     it('should decode alphabets with invalid UTF-8 sequence', async () => {
       app.get('/static/:path', (c) => {
         return c.text(`by c.req.param: ${c.req.param('path')}`)

@@ -1,8 +1,8 @@
 import { createNullObject } from '../utils'
 
 export const LABEL_REG_EXP_STR = '[^/]+'
-export const ONLY_WILDCARD_REG_EXP_STR = '.*'
-export const TAIL_WILDCARD_REG_EXP_STR = '(?:|/.*)'
+export const ONLY_WILDCARD_REG_EXP_STR = '[^]*'
+export const TAIL_WILDCARD_REG_EXP_STR = '(?:|/[^]*)'
 export const PATH_ERROR = Symbol()
 
 export type ParamAssocArray = [string, number][]
@@ -27,7 +27,7 @@ function compareKey(a: string, b: string): number {
     return 1
   }
 
-  // wildcard: the only wildcard (.*) precedes the tail wildcard
+  // wildcard: the only wildcard precedes the tail wildcard
   if (a === ONLY_WILDCARD_REG_EXP_STR || a === TAIL_WILDCARD_REG_EXP_STR) {
     return b === TAIL_WILDCARD_REG_EXP_STR ? -1 : 1
   } else if (b === ONLY_WILDCARD_REG_EXP_STR || b === TAIL_WILDCARD_REG_EXP_STR) {
@@ -69,7 +69,7 @@ export class Node {
               : ['', '', LABEL_REG_EXP_STR]
             : null
           : token === '/*'
-            ? ['', '', TAIL_WILDCARD_REG_EXP_STR] // '/path/to/*' is /\/path\/to(?:|/.*)$
+            ? ['', '', TAIL_WILDCARD_REG_EXP_STR] // '/path/to/*' also matches '/path/to'
             : token.match(/^\:([^\{\}]+)(?:\{(.+)\})?$/)
 
       let nextNode: Node
@@ -77,7 +77,7 @@ export class Node {
         const name = pattern[1]
         let regexpStr = pattern[2] || LABEL_REG_EXP_STR
         if (name && pattern[2]) {
-          if (regexpStr === '.*') {
+          if (regexpStr === '.*' || regexpStr === ONLY_WILDCARD_REG_EXP_STR) {
             throw PATH_ERROR
           }
           regexpStr = regexpStr.replace(/^\((?!\?:)(?=[^)]+\)$)/, '(?:') // (a|b) => (?:a|b)

@@ -3,6 +3,8 @@ import { UnsupportedPathError } from '../../router'
 import { runTest } from '../common.case.test'
 import { RegExpRouter } from './router'
 
+const lineTerminators = ['\n', '\r', '\u2028', '\u2029']
+
 describe('RegExpRouter', () => {
   runTest({
     skip: [
@@ -23,6 +25,40 @@ describe('RegExpRouter', () => {
       },
     ],
     newRouter: () => new RegExpRouter(),
+  })
+
+  describe('Wildcard matching line terminators', () => {
+    it.each(lineTerminators)('Should match an only-wildcard path containing %j', (char) => {
+      const router = new RegExpRouter<string>()
+      router.add('GET', '*', 'wildcard')
+
+      const [res] = router.match('GET', `/a${char}b`)
+      expect(res.map(([handler]) => handler)).toEqual(['wildcard'])
+    })
+
+    it.each(lineTerminators)('Should match a tail-wildcard path containing %j', (char) => {
+      const router = new RegExpRouter<string>()
+      router.add('GET', '/files/*', 'wildcard')
+
+      const [res] = router.match('GET', `/files/a${char}b`)
+      expect(res.map(([handler]) => handler)).toEqual(['wildcard'])
+    })
+
+    it.each(lineTerminators)('Should keep user-defined dot patterns unchanged for %j', (char) => {
+      const router = new RegExpRouter<string>()
+      router.add('GET', '/custom/:id{.+}', 'custom')
+
+      const [res] = router.match('GET', `/custom/a${char}b`)
+      expect(res).toEqual([])
+    })
+
+    it('Should reject a custom pattern that collides with the only wildcard', () => {
+      const router = new RegExpRouter<string>()
+
+      expect(() => {
+        router.add('GET', '/custom/:id{[^]*}', 'custom')
+      }).toThrowError(UnsupportedPathError)
+    })
   })
 
   describe('Return value type', () => {
